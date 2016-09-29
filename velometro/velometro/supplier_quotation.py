@@ -12,30 +12,30 @@ def add_pricing_rules(mquotation, method=None):
 	"""This function adds all the items to pricing rules"""
 	frappe.msgprint(_("Adding Pricing Rules"))
 	quotation = frappe.get_doc("Supplier Quotation",mquotation)
-	
-	# Loop through all of the items in the price list 
+
+	# Loop through all of the items in the price list
 	for item_doc in quotation.items:
 		#  check to see if there are any pricing rules that fall into the specified quantity/supplier
 		#frappe.msgprint(_("Checking pricing rules of {0} for previous prices".format(item_doc.item_code)))
 
-		item = frappe.get_doc("Item",item_doc.item_code) 
+		item = frappe.get_doc("Item",item_doc.item_code)
 
 		args = {
 			"doctype": item_doc.doctype,
 			"parent_type": item_doc.parenttype,
 			"name": item_doc.name,
-			"item_code": item_doc.item_code, 
+			"item_code": item_doc.item_code,
 			"transaction_type": "buying",
 			"supplier": quotation.supplier,
 			"qty": item_doc.qty,
 			"price_list": quotation.buying_price_list,
-			"company": quotation.company 
+			"company": quotation.company
 		}
 
 		args = frappe._dict(args)
-		
-		pr_result = get_pricing_rule_for_item(args) 
-		
+
+		pr_result = get_pricing_rule_for_item(args)
+
 		if not pr_result.pricing_rule:
 			frappe.msgprint(_("There are no pricing rules for this item"))
 			pr_title = item_doc.item_code + "-" + quotation.supplier + "-" + str(item_doc.qty)
@@ -44,14 +44,13 @@ def add_pricing_rules(mquotation, method=None):
 
 		else:
 			frappe.msgprint(_("Pricing Rule {0} applies for this item".format(pr_result.pricing_rule)))
-			
+
 			# Check to see if the pricing rule matches quantity min exactly
 			pricing_rule = frappe.get_doc("Pricing Rule", pr_result.pricing_rule)
 			if item_doc.qty == pricing_rule.min_qty:
 				# This pricing rule rate just needs to be changed
 				frappe.msgprint(_("Updating Pricing Rule"))
 				frappe.set_value("Pricing Rule", pricing_rule.name, "price",item_doc.rate)
-				frappe.set_value("Pricing Rule", pricing_rule.name, "from_supplier_quotation",quotation.name)
 
 			else:
 				frappe.msgprint(_("Creating new rule and incrementing priority"))
@@ -60,12 +59,12 @@ def add_pricing_rules(mquotation, method=None):
 				new_rule = frappe.get_doc({"doctype":"Pricing Rule", "min_qty": item_doc.qty, "apply_on": "Item Code", "item_code": item_doc.item_code, "priority": pricing_rule.priority, "buying": "1", "applicable_for": "Supplier", "company": quotation.company, "price_or_discount": "Price", "price": item_doc.rate, "supplier": quotation.supplier, "for_price_list" : quotation.buying_price_list, "title": pr_title, "from_supplier_quotation": quotation.name })
 				new_rule.insert()
 
-				# Run through each of the higher quantity pricing rules and increase their priority by one 
+				# Run through each of the higher quantity pricing rules and increase their priority by one
 				unfiltered_rules = get_pricing_rules(args)
 				pricing_rules = filter(lambda x: (flt(item_doc.qty)<=flt(x.min_qty)), unfiltered_rules)
 				for pr in pricing_rules:
 					frappe.set_value("Pricing Rule", pr.name, "priority",str(int(pr.priority) + 1))
-					#frappe.msgprint(_("Incorporating new Pricing rule between others".format(pr.name, pr.priority))) 
+					#frappe.msgprint(_("Incorporating new Pricing rule between others".format(pr.name, pr.priority)))
 
 
 @frappe.whitelist()
@@ -73,18 +72,18 @@ def copy_pricing_rule_from_previous_revision(base_item_code, current_rev):
 	"""This function adds all the items to pricing rules"""
 	new_code = str(base_item_code) + "_" + str(int(current_rev))
 	args = {
-		"item_code": str(base_item_code) + "_" + str(int(current_rev)-1), 
+		"item_code": str(base_item_code) + "_" + str(int(current_rev)-1),
 		"transaction_type": "buying"
 	}
-	
-	
+
+
 	args = frappe._dict(args)
 	frappe.msgprint(_("Copying Pricing Rules for " + args.item_code))
-	pr_result = get_pricing_rules(args) 
-	
-	
+	pr_result = get_pricing_rules(args)
+
+
 	pr_result =  frappe.db.sql("""SELECT * FROM `tabPricing Rule` WHERE item_code=%(item_code)s ORDER by priority desc, name desc""", args , as_dict=1)
-			
+
 	for rule in pr_result:
 		frappe.msgprint("Copying rule: " + str(rule.name))
 		pr_title = new_code + "-" + rule.supplier + "-" + str(rule.min_qty)
