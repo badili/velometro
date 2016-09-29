@@ -17,9 +17,7 @@ def add_pricing_rules(mquotation, method=None):
 	for item_doc in quotation.items:
 		#  check to see if there are any pricing rules that fall into the specified quantity/supplier
 		#frappe.msgprint(_("Checking pricing rules of {0} for previous prices".format(item_doc.item_code)))
-
 		item = frappe.get_doc("Item",item_doc.item_code)
-
 		args = {
 			"doctype": item_doc.doctype,
 			"parent_type": item_doc.parenttype,
