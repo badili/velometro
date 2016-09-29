@@ -63,6 +63,8 @@ def add_pricing_rules(mquotation, method=None):
 				unfiltered_rules = get_pricing_rules(args)
 				pricing_rules = filter(lambda x: (flt(item_doc.qty)<=flt(x.min_qty)), unfiltered_rules)
 				for pr in pricing_rules:
+					if pr.priority == '':
+						continue
 					frappe.set_value("Pricing Rule", pr.name, "priority",str(int(pr.priority) + 1))
 					#frappe.msgprint(_("Incorporating new Pricing rule between others".format(pr.name, pr.priority)))
 
