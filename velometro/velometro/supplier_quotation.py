@@ -90,3 +90,53 @@ def copy_pricing_rule_from_previous_revision(base_item_code, current_rev):
 		new_rule = frappe.get_doc({"doctype":"Pricing Rule", "min_qty": rule.min_qty, "apply_on": rule.apply_on, "item_code": new_code, "priority": rule.priority, "buying": rule.buying, "applicable_for": rule.applicable_for, "company": rule.company, "price_or_discount": rule.price_or_discount, "price": rule.price, "supplier": rule.supplier, "for_price_list" : rule.for_price_list, "title": pr_title, "from_supplier_quotation": rule.from_supplier_quotation })
 		new_rule.insert()
 
+@frappe.whitelist()
+def fetch_unquoted_items(mquotation, method=None):
+	"""This function gets all the unquoted items. It compares the submitted supplier quotation with the sent RFQ"""
+	frappe.msgprint(_("Fetching the RFQ for this supplier quotation"))
+	quotation = frappe.get_doc("Supplier Quotation", mquotation)
+	rfq = frappe.get_doc("Request for Quotation", quotation.request_for_quotation)
+
+	# Loop through all of the items in the price list
+	unquoted_items = {}
+	all_rfq_items = {}
+	all_quoted_items = {}
+
+	# first process the rfq items to ensure we are only dealing with a unique list
+	for rfq_item in rfq.items:
+		# check if there is a case of duplicate items in the RFQ. If its there, just add the numbers
+		if rfq_item.item_code not in all_rfq_items:
+			all_rfq_items[rfq_item.item_code] = rfq_item
+		else:
+			frappe.msgprint("Duplicate item '%s' in the RFQ %s. Adding the number items" %s (rfq_item.item_code, quotation.request_for_quotation))
+			all_rfq_items[rfq_item.item_code].qty = rfq_item.qty + all_rfq_items[rfq_item.item_code].qty
+
+	# process the quoted items to ensure that we are only dealing with unique items too
+	for quoted_item in quotation.items:
+		if quoted_item.item_code not in all_quoted_items:
+			all_quoted_items[quoted_item.item_code] = quoted_item
+		else:
+			frappe.msgprint("Duplicate item '%s' in the Supplier Quotation %s. Adding the number items" %s (quoted_item.item_code, mquotation))
+			all_quoted_items[quoted_item.item_code].qty = quoted_item.qty + all_quoted_items[quoted_item.item_code].qty
+
+		for rfq_item_code, rfq_item in all_rfq_items.iteritems():
+			is_fully_quoted = False
+			is_added_to_unquoted = False
+			for quoted_item_code, quoted_item in all_quoted_items.iteritems():
+				if rfq_item_code == quoted_item_code:
+					if rfq_item.qty != quoted_item.qty:
+						# we have a discrepancy in the number of items quoted, so add the difference to the unquoted items
+						rfq_item.qty = rfq_item.qty - quoted_item.qty
+						unquoted_items[rfq_item_code] = rfq_item
+						is_added_to_unquoted = True
+					else:
+						# all has been quoted fully
+						is_fully_quoted = True
+
+			# now check if our item is fully quoted, if not add it to the unquoted items
+			if is_fully_quoted == False and is_added_to_unquoted == False:
+				unquoted_items[rfq_item_code] = rfq_item
+
+	frappe.msgprint("We have %d unquoted items" % len(unquoted_items))
+
+
