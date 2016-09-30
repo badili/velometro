@@ -124,10 +124,8 @@ def fetch_unquoted_items(mquotation, method=None):
 		for rfq_item_code, rfq_item in all_rfq_items.iteritems():
 			is_fully_quoted = False
 			is_added_to_unquoted = False
-			is_quoted = False
 			for quoted_item_code, quoted_item in all_quoted_items.iteritems():
 				if rfq_item_code == quoted_item_code:
-					is_quoted = True
 					if rfq_item.qty != quoted_item.qty:
 						# we have a discrepancy in the number of items quoted, so add the difference to the unquoted items
 						rfq_item.qty = rfq_item.qty - quoted_item.qty
@@ -137,10 +135,11 @@ def fetch_unquoted_items(mquotation, method=None):
 						# all has been quoted fully
 						is_fully_quoted = True
 
+			if is_fully_quoted == True:
+				continue
+				
 			# now check if our item is fully quoted, if not add it to the unquoted items
-			if is_quoted == False:
-				if is_fully_quoted == False and is_added_to_unquoted == False:
-					frappe.msgprint("Unquoted item '%s'" % (rfq_item_code))
+			if is_fully_quoted == False and is_added_to_unquoted == False:
 					unquoted_items[rfq_item_code] = rfq_item
 
 	frappe.msgprint("We have %d unquoted items" % len(unquoted_items))
