@@ -103,12 +103,14 @@ def fetch_unquoted_items(mquotation, method=None):
 	all_quoted_items = {}
 
 	# first process the rfq items to ensure we are only dealing with a unique list
+	frappe.msgprint("We have %d items in the RFQ '%s'" % (len(rfq.items), quotation.request_for_quotation))
+	frappe.msgprint("We have %d items in the Supplier Quotation '%s'" % (len(quotation.items), mquotation))
 	for rfq_item in rfq.items:
 		# check if there is a case of duplicate items in the RFQ. If its there, just add the numbers
 		if rfq_item.item_code not in all_rfq_items:
 			all_rfq_items[rfq_item.item_code] = rfq_item
 		else:
-			frappe.msgprint("Duplicate item '%s' in the RFQ %s. Adding the number items" %s (rfq_item.item_code, quotation.request_for_quotation))
+			frappe.msgprint("Duplicate item '%s' in the RFQ %s. Adding the number items" % (rfq_item.item_code, quotation.request_for_quotation))
 			all_rfq_items[rfq_item.item_code].qty = rfq_item.qty + all_rfq_items[rfq_item.item_code].qty
 
 	# process the quoted items to ensure that we are only dealing with unique items too
@@ -116,14 +118,16 @@ def fetch_unquoted_items(mquotation, method=None):
 		if quoted_item.item_code not in all_quoted_items:
 			all_quoted_items[quoted_item.item_code] = quoted_item
 		else:
-			frappe.msgprint("Duplicate item '%s' in the Supplier Quotation %s. Adding the number items" %s (quoted_item.item_code, mquotation))
+			frappe.msgprint("Duplicate item '%s' in the Supplier Quotation %s. Adding the number items" % (quoted_item.item_code, mquotation))
 			all_quoted_items[quoted_item.item_code].qty = quoted_item.qty + all_quoted_items[quoted_item.item_code].qty
 
 		for rfq_item_code, rfq_item in all_rfq_items.iteritems():
 			is_fully_quoted = False
 			is_added_to_unquoted = False
+			is_quoted = False
 			for quoted_item_code, quoted_item in all_quoted_items.iteritems():
 				if rfq_item_code == quoted_item_code:
+					is_quoted = True
 					if rfq_item.qty != quoted_item.qty:
 						# we have a discrepancy in the number of items quoted, so add the difference to the unquoted items
 						rfq_item.qty = rfq_item.qty - quoted_item.qty
@@ -134,8 +138,10 @@ def fetch_unquoted_items(mquotation, method=None):
 						is_fully_quoted = True
 
 			# now check if our item is fully quoted, if not add it to the unquoted items
-			if is_fully_quoted == False and is_added_to_unquoted == False:
-				unquoted_items[rfq_item_code] = rfq_item
+			if is_quoted == False:
+				if is_fully_quoted == False and is_added_to_unquoted == False:
+					frappe.msgprint("Unquoted item '%s'" % (rfq_item_code))
+					unquoted_items[rfq_item_code] = rfq_item
 
 	frappe.msgprint("We have %d unquoted items" % len(unquoted_items))
 
